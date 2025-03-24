@@ -36,12 +36,18 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'graphene_django',
     'django_neomodel',
+    'rest_framework_simplejwt',
     'rest_framework',
     'corsheaders',
     'familyapp',
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+}
 # config db
 NEOMODEL_NEO4J_BOLT_URL = "bolt://neo4j:05070109@localhost:7687"
 
@@ -49,6 +55,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -77,9 +84,10 @@ WSGI_APPLICATION = 'familytreebe.wsgi.application'
 
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:8000",
+    'http://127.0.0.1:8000',  # Backend URL (if your frontend is running on localhost)
+    'http://localhost:3000',   # Example: if frontend is running on port 3000
 ]
+
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
