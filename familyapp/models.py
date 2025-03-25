@@ -46,7 +46,7 @@ class Uye(StructuredNode):
         return self.element_id
 
 class User(StructuredNode):
-    uid = UniqueIdProperty()  # Changed 'id' to 'uid'
+    uid = UniqueIdProperty()  
     username = StringProperty(required=True)
     email = StringProperty(required=True)
     password = StringProperty(required=True)

@@ -6,18 +6,22 @@ class UserSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=255)
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
+    repassword = serializers.CharField(write_only=True)  # Added confirm password
+    element_id = serializers.CharField(read_only=True)
+
+    def validate(self, data):
+        """Ensure password and repassword match."""
+        if data['password'] != data['repassword']:
+            raise serializers.ValidationError({"repassword": "Passwords do not match."})
+        return data
 
     def create(self, validated_data):
-        # Hash the password before saving
-        password = make_password(validated_data['password'])
-        user = User(
-            username=validated_data['username'],
-            email=validated_data['email'],
-            password=password
-        )
-        user.save()  # Save to Neo4j
+        """Remove repassword field before saving."""
+        validated_data.pop('repassword')  
+        validated_data['password'] = make_password(validated_data['password'])  # Hash password
+        user = User(**validated_data)
+        user.save()  
         return user
-
     def update(self, instance, validated_data):
         # Update the user instance
         instance.username = validated_data.get('username', instance.username)
@@ -25,7 +29,9 @@ class UserSerializer(serializers.Serializer):
         instance.password = validated_data.get('password', instance.password)
         instance.save()
         return instance
-    
+class LoginSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField(write_only=True)
 # 🟢 Person Serializer
 class PersonSerializer(serializers.Serializer):
     class Meta:
