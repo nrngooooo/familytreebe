@@ -48,13 +48,18 @@ class PersonSerializer(serializers.Serializer):  # ✅ Correct for Neo4j nodes
     def create(self, validated_data):
         image = validated_data.pop("image", None)
         image_url = None
-        
+
         if image:
             image_path = f"uploads/{image.name}"
-            default_storage.save(image_path, image)  # Save image to media/uploads/
-            image_url = default_storage.url(image_path)  # Get the URL
+            default_storage.save(image_path, image)  # ✅ Save image to media/uploads/
+            image_url = default_storage.url(image_path)  # ✅ Get URL
 
-        person = Person(**validated_data, image_url=image_url).save()
+        # ✅ Create a new person node
+        person = Person(**validated_data)
+        if image_url:
+            person.image_url = image_url
+        person.save()  # ✅ Save Neo4j node
+
         return person
 
     def update(self, instance, validated_data):

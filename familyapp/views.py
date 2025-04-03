@@ -1,4 +1,3 @@
-import datetime
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
@@ -76,8 +75,14 @@ class LoginView(APIView):
 
             user = User.nodes.filter(username=username).first()
             if user and check_password(password, user.password):
+                # Generate a simple token (you might want to use JWT or another token system in production)
+                token = f"{user.get_element_id()}:{username}"  # Simple token format
                 return Response(
-                    {"message": "Login successful", "element_id": user.get_element_id()},
+                    {
+                        "message": "Login successful", 
+                        "element_id": user.get_element_id(),
+                        "token": token
+                    },
                     status=status.HTTP_200_OK
                 )
             return Response({"error": "Invalid username or password"}, status=status.HTTP_401_UNAUTHORIZED)
@@ -87,27 +92,45 @@ class LoginView(APIView):
 class UpdatePersonView(APIView):
     permission_classes = [IsAuthenticated]  # Ensure user is logged in
 
-    def post(self, request):
-        user_id = request.data.get("element_id")
-        person_id = request.data.get("person_id")
-        
-        # Find the user and their linked person
-        user = User.nodes.get_or_none(uid=user_id)
-        person = Person.nodes.get_or_none(element_id=person_id)
+    def put(self, request, person_id):
+        try:
+            person = Person.nodes.get_or_none(uid=person_id)  # Fetch by unique identifier
+            if not person:
+                return Response({"error": "Хүн олдсонгүй"}, status=status.HTTP_404_NOT_FOUND)
 
-        if not user or not person:
-            return Response({"error": "User or Person not found"}, status=status.HTTP_404_NOT_FOUND)
+            serializer = PersonSerializer(person, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({"message": "Мэдээлэл шинэчлэгдлээ", "person": serializer.data}, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": f"Серверийн алдаа: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+class ProfileView(APIView):
+    permission_classes = [IsAuthenticated]  # Make sure user is authenticated
 
-        # Update fields (if provided)
-        person.lastname = request.data.get("lastname", person.lastname)
-        person.birthdate = request.data.get("birthdate", person.birthdate)
-        person.gender = request.data.get("gender", person.gender)
-        person.namtar = request.data.get("namtar", person.namtar)
-        person.modifydate = datetime.now().date()
-        person.save()
+    def get(self, request):
+        try:
+            person = request.user.created_people.first()  # Ensure you're fetching the correct person
+            if not person:
+                return Response({"error": "Person information not found"}, status=status.HTTP_404_NOT_FOUND)
+            person_serializer = PersonSerializer(person)
+            return Response({"profile": person_serializer.data}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        return Response({"message": "Profile updated successfully"}, status=status.HTTP_200_OK)
+    def put(self, request):
+        try:
+            person = request.user.created_people.first()  # Ensure the correct person is fetched
+            if not person:
+                return Response({"error": "Person information not found"}, status=status.HTTP_404_NOT_FOUND)
 
+            person_serializer = PersonSerializer(person, data=request.data, partial=True)
+            if person_serializer.is_valid():
+                person_serializer.save()
+                return Response({"message": "Profile updated successfully", "profile": person_serializer.data}, status=status.HTTP_200_OK)
+            return Response(person_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # 🟢 Retrieve, Update, Delete Person
 class PersonDetailView(APIView):
