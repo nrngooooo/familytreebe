@@ -1,6 +1,7 @@
 from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
 from .models import Person, Place, Uye, UrgiinOvog, User
+from django.core.files.storage import default_storage
 
 class UserSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=255)
@@ -12,7 +13,7 @@ class UserSerializer(serializers.Serializer):
     def validate(self, data):
         """Ensure password and repassword match."""
         if data['password'] != data['repassword']:
-            raise serializers.ValidationError({"repassword": "Passwords do not match."})
+            raise serializers.ValidationError({"repassword": "Нууц үг таарахгүй байна!"})
         return data
 
     def create(self, validated_data):
@@ -29,19 +30,40 @@ class UserSerializer(serializers.Serializer):
         instance.password = validated_data.get('password', instance.password)
         instance.save()
         return instance
+    
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField(write_only=True)
+
 # 🟢 Person Serializer
-class PersonSerializer(serializers.Serializer):
-    class Meta:
-        model = Person
-        fields = '__all__'
+class PersonSerializer(serializers.Serializer):  # ✅ Correct for Neo4j nodes
+    lastname = serializers.CharField(max_length=255, required=False, default="Нэргүй")
+    name = serializers.CharField(max_length=255, required=True)
+    birthdate = serializers.DateField()
+    deathdate = serializers.DateField(allow_null=True, required=False)
+    gender = serializers.CharField(max_length=50)
+    namtar = serializers.CharField(allow_blank=True)
+    image = serializers.ImageField(required=False)  # Accept image upload
 
     def create(self, validated_data):
-        return Person(**validated_data).save()
+        image = validated_data.pop("image", None)
+        image_url = None
+        
+        if image:
+            image_path = f"uploads/{image.name}"
+            default_storage.save(image_path, image)  # Save image to media/uploads/
+            image_url = default_storage.url(image_path)  # Get the URL
+
+        person = Person(**validated_data, image_url=image_url).save()
+        return person
 
     def update(self, instance, validated_data):
+        image = validated_data.pop("image", None)
+        if image:
+            image_path = f"uploads/{image.name}"
+            default_storage.save(image_path, image)
+            instance.image_url = default_storage.url(image_path)
+
         for key, value in validated_data.items():
             setattr(instance, key, value)
         instance.save()

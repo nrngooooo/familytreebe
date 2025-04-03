@@ -12,10 +12,13 @@ class UrgiinOvog(StructuredNode):
 class Person(StructuredNode):
     lastname = StringProperty()
     name = StringProperty(required=True)
-    gender = StringProperty(choices={"Эр", "Эм"}, required=True)
+    gender = StringProperty(
+    choices={"Эр": "Эр", "Эм": "Эм"},  
+    required=False,  
+    default="Эр")
     birthdate = DateProperty(required=True)  # Must have a birthdate
     diedate = DateProperty(default=None, required=False)  # Can be null
-    zurag = models.ImageField(upload_to='zurag/', blank=True, null=True)
+    image_url = StringProperty()  # Store image path as a string
     намтар = StringProperty()
     createdate = DateProperty()
     modifydate = DateProperty()
@@ -31,6 +34,7 @@ class Person(StructuredNode):
     urgiinovog = RelationshipTo('UrgiinOvog', 'ХАРЬЯЛАГДДАГ')  # Clan relationship
     def get_element_id(self):
         return self.element_id
+    
 class Place(StructuredNode):
     name = StringProperty()
     country = StringProperty()
