@@ -1,4 +1,4 @@
-from django.contrib.auth.hashers import make_password
+from django.contrib.auth.hashers import make_password, check_password
 from rest_framework import serializers
 from .models import Person, Place, Uye, UrgiinOvog, User
 from django.core.files.storage import default_storage
@@ -24,10 +24,11 @@ class UserSerializer(serializers.Serializer):
         user.save()  
         return user
     def update(self, instance, validated_data):
-        # Update the user instance
         instance.username = validated_data.get('username', instance.username)
         instance.email = validated_data.get('email', instance.email)
-        instance.password = validated_data.get('password', instance.password)
+        
+        if 'password' in validated_data:
+            instance.password = make_password(validated_data['password'])  # Always hash updated password
         instance.save()
         return instance
     
@@ -35,45 +36,49 @@ class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField(write_only=True)
 
+    def validate(self, data):
+        username = data.get('username')
+        password = data.get('password')
+
+        try:
+            user = User.nodes.get(username=username)
+        except User.DoesNotExist:
+            raise serializers.ValidationError("Хэрэглэгч олдсонгүй!")
+
+        if not check_password(password, user.password):
+            raise serializers.ValidationError("Нууц үг буруу байна!")
+
+        data['user'] = user
+        return data
+
 # 🟢 Person Serializer
-class PersonSerializer(serializers.Serializer):  # ✅ Correct for Neo4j nodes
-    lastname = serializers.CharField(max_length=255, required=False, default="Нэргүй")
-    name = serializers.CharField(max_length=255, required=True)
+
+class PersonSerializer(serializers.Serializer):
+    name = serializers.CharField()
+    lastname = serializers.CharField(required=False)
+    gender = serializers.ChoiceField(choices=["Эр", "Эм"])
     birthdate = serializers.DateField()
-    deathdate = serializers.DateField(allow_null=True, required=False)
-    gender = serializers.CharField(max_length=50)
-    namtar = serializers.CharField(allow_blank=True)
-    image = serializers.ImageField(required=False)  # Accept image upload
+    diedate = serializers.DateField(required=False, allow_null=True)
+    image_url = serializers.CharField(required=False)
+    biography = serializers.CharField(required=False)
+    element_id = serializers.CharField(read_only=True)
 
     def create(self, validated_data):
-        image = validated_data.pop("image", None)
-        image_url = None
-
-        if image:
-            image_path = f"uploads/{image.name}"
-            default_storage.save(image_path, image)  # ✅ Save image to media/uploads/
-            image_url = default_storage.url(image_path)  # ✅ Get URL
-
-        # ✅ Create a new person node
         person = Person(**validated_data)
-        if image_url:
-            person.image_url = image_url
-        person.save()  # ✅ Save Neo4j node
-
+        person.save()
         return person
 
     def update(self, instance, validated_data):
-        image = validated_data.pop("image", None)
-        if image:
-            image_path = f"uploads/{image.name}"
-            default_storage.save(image_path, image)
-            instance.image_url = default_storage.url(image_path)
-
-        for key, value in validated_data.items():
-            setattr(instance, key, value)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
         instance.save()
         return instance
-
+class RelationshipSerializer(serializers.Serializer):
+    from_person_id = serializers.CharField()
+    to_person_id = serializers.CharField()
+    relationship_type = serializers.ChoiceField(choices=[
+        "ЭЦЭГ", "ЭХ", "ХҮҮХЭД", "АХ","ЭГЧ","ДҮҮ", "ГЭР БҮЛ", "ӨВӨӨ", "ЭМЭЭ", "ТӨРСӨН", "ХАМААРНА", "ХАРЬЯЛАГДДАГ", "БҮРТГЭСЭН", "ЗАСВАРЛАСАН"
+    ])
 # 🟢 Place Serializer
 class PlaceSerializer(serializers.Serializer):
     class Meta:

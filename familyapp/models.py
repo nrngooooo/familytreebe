@@ -1,46 +1,16 @@
-from neomodel import StructuredNode, StructuredRel, StringProperty, DateProperty, IntegerProperty, RelationshipTo, RelationshipFrom, UniqueIdProperty
-from django.db import models
+from neomodel import StructuredNode, StructuredRel, StringProperty, DateProperty, IntegerProperty, RelationshipTo, RelationshipFrom, UniqueIdProperty, DateTimeProperty
 
+# -- MARRIAGE RELATIONSHIP --
 class MarriageRel(StructuredRel):
     date = DateProperty()  # Marriage date
 
+# -- CLAN --
 class UrgiinOvog(StructuredNode):
     urgiinovog = StringProperty(required=True)  # Clan name (e.g., Боржигон, Чонос)
     def get_element_id(self):
         return self.element_id
 
-class Person(StructuredNode):
-    lastname = StringProperty()
-    name = StringProperty(required=True)
-    gender = StringProperty(
-    choices={"Эр": "Эр", "Эм": "Эм"},  
-    required=False,  
-    default="Эр")
-    birthdate = DateProperty(required=True)  # Must have a birthdate
-    diedate = DateProperty(default=None, required=False)  # Can be null
-    image_url = StringProperty()  # Store image path as a string
-    намтар = StringProperty()
-    createdate = DateProperty()
-    modifydate = DateProperty()
-
-    # Relationships
-    spouse = RelationshipTo('Person', 'НӨХӨР')  # Husband/Wife relationship
-    child = RelationshipTo('Person', 'ЭХ')  # Parent-Child relationship
-    born_in = RelationshipTo('Place', 'ТӨРСӨН')  # Birthplace relationship
-    married = RelationshipTo('Person', 'ГЭРЛЭСЭН', model=MarriageRel)  # Marriage relationship with date
-    generation = RelationshipTo('Uye', 'БАЙДАГ')  # Relationship to generation
-    created_by = RelationshipFrom('User', 'БҮРТГЭСЭН')  # Created by User
-    modified_by = RelationshipFrom('User', 'ЗАСВАРЛАСАН')  # Modified by User
-    urgiinovog = RelationshipTo('UrgiinOvog', 'ХАРЬЯЛАГДДАГ')  # Clan relationship
-    def get_element_id(self):
-        return self.element_id
-    
-class Place(StructuredNode):
-    name = StringProperty()
-    country = StringProperty()
-    def get_element_id(self):
-        return self.element_id
-
+# -- GENERATIO --
 class Uye(StructuredNode):
     uyname = StringProperty(required=True)
     level = IntegerProperty(required=True)
@@ -49,18 +19,67 @@ class Uye(StructuredNode):
     def get_element_id(self):
         return self.element_id
 
+# -- PLACE --
+class Place(StructuredNode):
+    name = StringProperty()
+    country = StringProperty()
+    def get_element_id(self):
+        return self.element_id
+
+# -- PERSON --
+class Person(StructuredNode):
+    lastname = StringProperty()
+    name = StringProperty(required=True)
+    gender = StringProperty(choices={"Эр": "Эр", "Эм": "Эм"}, default="Эр")
+    birthdate = DateProperty(required=True)
+    diedate = DateProperty(default=None)
+    image_url = StringProperty()
+    biography = StringProperty()  # Instead of намтар
+    createdate = DateTimeProperty(default_now=True)
+    modifydate = DateTimeProperty(default_now=True)
+     # 🔸 Explicit Family Relationships
+    father = RelationshipTo('Person', 'ЭЦЭГ')       # Father
+    mother = RelationshipTo('Person', 'ЭХ')         # Mother
+    children = RelationshipTo('Person', 'ХҮҮХЭД')   # Children
+
+    brothers = RelationshipTo('Person', 'АХ')       # Brother
+    sisters = RelationshipTo('Person', 'ЭГЧ')        # Sister
+    youngsiblings = RelationshipTo('Person', 'ДҮҮ')       # Children
+
+    grandfather = RelationshipTo('Person', 'ӨВӨӨ')   # Grandfather
+    grandmother = RelationshipTo('Person', 'ЭМЭЭ')   # Grandmother
+
+    # Spouse (one-to-one or many-to-one with optional marriage date)
+    spouse = RelationshipTo('Person', 'ГЭР БҮЛ', model=MarriageRel)
+
+    # Birthplace
+    born_in = RelationshipTo('Place', 'ТӨРСӨН')
+
+    # Generation (Үе) and Clan (Ургийн овог)
+    generation = RelationshipTo('Uye', 'ХАМААРНА')
+    urgiinovog = RelationshipTo('UrgiinOvog', 'ХАРЬЯЛАГДДАГ')
+
+    # Audit info
+    created_by = RelationshipFrom('User', 'БҮРТГЭСЭН')
+    modified_by = RelationshipFrom('User', 'ЗАСВАРЛАСАН')
+    def get_element_id(self):
+        return self.element_id
+
+# -- USER --
 class User(StructuredNode):
+    
     uid = UniqueIdProperty()  
     username = StringProperty(required=True)
     email = StringProperty(required=True)
     password = StringProperty(required=True)
-
+    token = StringProperty()
     # Relationships
     created_people = RelationshipTo('Person', 'БҮРТГЭСЭН')  # Users can create multiple people
     family_trees = RelationshipTo('UserFamilyTree', 'HAS_FAMILY_TREE')  # User can have one or more family trees
     def get_element_id(self):
         return self.element_id 
 
+# -- USER FAMILY TREE --
 class UserFamilyTree(StructuredNode):
     root_person = RelationshipTo('Person', 'MANAGES', cardinality=1)
     user = RelationshipFrom('User', 'HAS_FAMILY_TREE', cardinality=1)
