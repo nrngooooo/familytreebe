@@ -57,6 +57,32 @@ class ProfileView(APIView):
         except DoesNotExist:
             return Response({"error": "User not found"}, status=404)
 
+    def post(self, request, uid):
+        try:
+            user = User.nodes.get(uid=uid)
+            # Get existing person or create new one
+            person = next(iter(user.created_people.all()), None)
+            
+            serializer = PersonSerializer(data=request.data)
+            if serializer.is_valid():
+                if person:
+                    # Update existing person
+                    for attr, value in serializer.validated_data.items():
+                        setattr(person, attr, value)
+                    person.save()
+                else:
+                    # Create new person
+                    person = Person(**serializer.validated_data)
+                    person.save()
+                    user.created_people.connect(person)
+                
+                return Response(PersonSerializer(person).data, status=200)
+            return Response(serializer.errors, status=400)
+        except DoesNotExist:
+            return Response({"error": "User not found"}, status=404)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
 class PersonCreateView(APIView):
     def post(self, request):
         serializer = PersonSerializer(data=request.data)

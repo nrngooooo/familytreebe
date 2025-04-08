@@ -52,7 +52,6 @@ class LoginSerializer(serializers.Serializer):
         return data
 
 # 🟢 Person Serializer
-
 class PersonSerializer(serializers.Serializer):
     name = serializers.CharField()
     lastname = serializers.CharField(required=False)
@@ -73,12 +72,14 @@ class PersonSerializer(serializers.Serializer):
             setattr(instance, attr, value)
         instance.save()
         return instance
+    
 class RelationshipSerializer(serializers.Serializer):
     from_person_id = serializers.CharField()
     to_person_id = serializers.CharField()
     relationship_type = serializers.ChoiceField(choices=[
         "ЭЦЭГ", "ЭХ", "ХҮҮХЭД", "АХ","ЭГЧ","ДҮҮ", "ГЭР БҮЛ", "ӨВӨӨ", "ЭМЭЭ", "ТӨРСӨН", "ХАМААРНА", "ХАРЬЯЛАГДДАГ", "БҮРТГЭСЭН", "ЗАСВАРЛАСАН"
     ])
+    
 # 🟢 Place Serializer
 class PlaceSerializer(serializers.Serializer):
     class Meta:
