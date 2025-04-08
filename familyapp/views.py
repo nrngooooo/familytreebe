@@ -178,3 +178,16 @@ class UserListCreateView(APIView):
             serializer.save()
             return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)
+
+class LogoutView(APIView):
+    authentication_classes = [UUIDTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            user = request.user
+            user.token = None
+            user.save()
+            return Response({"message": "Амжилттай гарлаа"}, status=200)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
