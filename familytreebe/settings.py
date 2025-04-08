@@ -38,16 +38,23 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django_neomodel',
     'rest_framework',
+    'rest_framework.authtoken',
     'corsheaders',
     'familyapp',
 ]
 
 REST_FRAMEWORK = {
-    
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
         'rest_framework.permissions.AllowAny',
+    ], 
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'familyapp.authentication.UUIDTokenAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
     ],
+    
 }
 # config db
 NEOMODEL_NEO4J_BOLT_URL = "bolt://neo4j:05070109@localhost:7687"

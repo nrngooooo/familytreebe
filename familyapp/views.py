@@ -1,11 +1,12 @@
 import uuid
 from rest_framework.response import Response
 from rest_framework import status
+from neomodel.exceptions import DoesNotExist
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from .models import Person, Place, User
 from .serializers import LoginSerializer, PersonSerializer, PlaceSerializer, RelationshipSerializer, UserSerializer
-
+from .authentication import UUIDTokenAuthentication
 class RegisterView(APIView):
     permission_classes = [AllowAny]  # Allow unauthenticated access to registration
     def post(self, request):
@@ -23,8 +24,9 @@ class LoginView(APIView):
         if serializer.is_valid():
             user = serializer.validated_data['user']
             
-            # ✅ Manually generate a token (UUID or JWT)
-            user.token = str(uuid.uuid4())
+            # Generate a new token using UUID
+            token = str(uuid.uuid4())
+            user.token = token
             user.save()
 
             return Response({
@@ -33,24 +35,26 @@ class LoginView(APIView):
                 "username": user.username,
                 "email": user.email,
                 "element_id": user.element_id,
-                "token": user.token,  # ✅ Now token is returned from Neo4j
+                "token": token,
             }, status=200)
         return Response(serializer.errors, status=400)
     
 # 🟢 List & Create Persons
 class ProfileView(APIView):
-    permission_classes = [IsAuthenticated]  # Ensure the user is authenticated
+    authentication_classes = [UUIDTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
     def get(self, request, uid):
         try:
             user = User.nodes.get(uid=uid)
-            person = user.created_people.all().first()  # assuming one "owner person"
+            person = next(iter(user.created_people.all()), None)  # safer version
             data = {
                 "username": user.username,
                 "email": user.email,
                 "person": PersonSerializer(person).data if person else None
             }
             return Response(data)
-        except User.DoesNotExist:
+        except DoesNotExist:
             return Response({"error": "User not found"}, status=404)
 
 class PersonCreateView(APIView):
@@ -134,7 +138,6 @@ class PlaceListCreateView(APIView):
             serializer.save()
             return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)
-
 
 # 🟢 List & Create Users
 class UserListCreateView(APIView):

@@ -76,6 +76,9 @@ class User(StructuredNode):
     # Relationships
     created_people = RelationshipTo('Person', 'БҮРТГЭСЭН')  # Users can create multiple people
     family_trees = RelationshipTo('UserFamilyTree', 'HAS_FAMILY_TREE')  # User can have one or more family trees
+    @property
+    def is_authenticated(self):
+        return True
     def get_element_id(self):
         return self.element_id 
 
