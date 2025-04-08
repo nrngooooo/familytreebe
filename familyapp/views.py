@@ -191,3 +191,22 @@ class LogoutView(APIView):
             return Response({"message": "Амжилттай гарлаа"}, status=200)
         except Exception as e:
             return Response({"error": str(e)}, status=400)
+
+class DeleteUserView(APIView):
+    authentication_classes = [UUIDTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, uid):
+        try:
+            user = User.nodes.get(uid=uid)
+            # Delete associated person if exists
+            person = next(iter(user.created_people.all()), None)
+            if person:
+                person.delete()
+            # Delete the user
+            user.delete()
+            return Response({"message": "Хэрэглэгч амжилттай устгагдлаа"}, status=200)
+        except User.DoesNotExist:
+            return Response({"error": "Хэрэглэгч олдсонгүй"}, status=404)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
