@@ -7,6 +7,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from .models import *
 from .serializers import *
 from .authentication import UUIDTokenAuthentication
+import datetime
+
 class RegisterView(APIView):
     permission_classes = [AllowAny]  # Allow unauthenticated access to registration
     def post(self, request):
@@ -160,12 +162,45 @@ class AddFamilyMemberView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class FamilyMembersListView(APIView):
+    authentication_classes = [UUIDTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
     def get(self, request, person_id):
-        serializer = FamilyMemberListSerializer(data={"person_id": person_id})
-        if serializer.is_valid():
-            data = serializer.to_representation({"person_id": person_id})
-            return Response(data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            # First get the user
+            user = User.nodes.get(uid=person_id)
+            # Then get their associated person
+            person = next(iter(user.created_people.all()), None)
+            
+            # If no person exists, create a default one
+            if not person:
+                person = Person(
+                    name=user.username,
+                    gender="Эр",
+                    birthdate=datetime.date.today()
+                )
+                person.save()
+                user.created_people.connect(person)
+            
+            # Get all related family members
+            family_members = {
+                "father": [PersonSerializer(p).data for p in person.father.all()],
+                "mother": [PersonSerializer(p).data for p in person.mother.all()],
+                "children": [PersonSerializer(p).data for p in person.children.all()],
+                "brothers": [PersonSerializer(p).data for p in person.brothers.all()],
+                "sisters": [PersonSerializer(p).data for p in person.sisters.all()],
+                "youngsiblings": [PersonSerializer(p).data for p in person.youngsiblings.all()],
+                "spouse": [PersonSerializer(p).data for p in person.spouse.all()],
+                "grandfather": [PersonSerializer(p).data for p in person.grandfather.all()],
+                "grandmother": [PersonSerializer(p).data for p in person.grandmother.all()]
+            }
+            
+            return Response(family_members)
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=404)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
 class LogoutView(APIView):
     authentication_classes = [UUIDTokenAuthentication]
     permission_classes = [IsAuthenticated]
