@@ -6,12 +6,14 @@ class MarriageRel(StructuredRel):
 
 # -- CLAN --
 class UrgiinOvog(StructuredNode):
+    uid = UniqueIdProperty()
     urgiinovog = StringProperty(required=True)  # Clan name (e.g., Боржигон, Чонос)
     def get_element_id(self):
         return self.element_id
 
 # -- GENERATIO --
 class Uye(StructuredNode):
+    uid = UniqueIdProperty()
     uyname = StringProperty(required=True)
     level = IntegerProperty(required=True)
     # Relationships
@@ -21,6 +23,7 @@ class Uye(StructuredNode):
 
 # -- PLACE --
 class Place(StructuredNode):
+    uid = UniqueIdProperty()
     name = StringProperty()
     country = StringProperty()
     def get_element_id(self):
@@ -28,6 +31,7 @@ class Place(StructuredNode):
 
 # -- PERSON --
 class Person(StructuredNode):
+    uid = UniqueIdProperty()
     lastname = StringProperty()
     name = StringProperty(required=True)
     gender = StringProperty(choices={"Эр": "Эр", "Эм": "Эм"}, default="Эр")
@@ -84,6 +88,7 @@ class User(StructuredNode):
 
 # -- USER FAMILY TREE --
 class UserFamilyTree(StructuredNode):
+    uid = UniqueIdProperty()
     root_person = RelationshipTo('Person', 'MANAGES', cardinality=1)
     user = RelationshipFrom('User', 'HAS_FAMILY_TREE', cardinality=1)
     name = StringProperty()

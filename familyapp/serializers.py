@@ -3,6 +3,38 @@ from rest_framework import serializers
 from .models import Person, Place, Uye, UrgiinOvog, User
 from django.core.files.storage import default_storage
 
+# 🟢 UrgiinOvog Serializer
+class UrgiinOvogSerializer(serializers.Serializer):
+    class Meta:
+        model = UrgiinOvog
+        fields = '__all__'
+
+    def create(self, validated_data):
+        return UrgiinOvog(**validated_data).save()
+    
+class UyeSerializer(serializers.Serializer):    
+    class Meta:
+        model = Uye
+        fields = '__all__'
+
+    def create(self, validated_data):
+        return Uye(**validated_data).save()
+class RelationshipSerializer(serializers.Serializer):
+    from_person_id = serializers.CharField()
+    to_person_id = serializers.CharField()
+    relationship_type = serializers.ChoiceField(choices=[
+        "ЭЦЭГ", "ЭХ", "ХҮҮХЭД", "АХ","ЭГЧ","ДҮҮ", "ГЭР БҮЛ", "ӨВӨӨ", "ЭМЭЭ", "ТӨРСӨН", "ХАМААРНА", "ХАРЬЯЛАГДДАГ", "БҮРТГЭСЭН", "ЗАСВАРЛАСАН"
+    ])
+    
+# 🟢 Place Serializer
+class PlaceSerializer(serializers.Serializer):
+    class Meta:
+        model = Place
+        fields = '__all__'
+
+    def create(self, validated_data):
+        return Place(**validated_data).save()
+# 🟢 User Serializer
 class UserSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=255)
     email = serializers.EmailField()
@@ -62,9 +94,39 @@ class PersonSerializer(serializers.Serializer):
     biography = serializers.CharField(required=False)
     element_id = serializers.CharField(read_only=True)
 
+    # 🔹 Custom representations
+    generation = serializers.SerializerMethodField()
+    birthplace = serializers.SerializerMethodField()
+    urgiinovog = serializers.SerializerMethodField()
+
+    def get_generation(self, obj):
+        try:
+            uye = obj.generation.single()
+            return {"uyname": uye.uyname, "level": uye.level}
+        except:
+            return None
+
+    def get_birthplace(self, obj):
+        try:
+            place = obj.born_in.single()
+            return {"name": place.name, "country": place.country}
+        except:
+            return None
+
+    def get_urgiinovog(self, obj):
+        try:
+            clan = obj.urgiinovog.single()
+            return {"urgiinovog": clan.urgiinovog}
+        except:
+            return None
+
     def create(self, validated_data):
         person = Person(**validated_data)
         person.save()
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            user = User.nodes.get(username=request.user.username)
+            person.created_by.connect(user)
         return person
 
     def update(self, instance, validated_data):
@@ -72,39 +134,108 @@ class PersonSerializer(serializers.Serializer):
             setattr(instance, attr, value)
         instance.save()
         return instance
-    
-class RelationshipSerializer(serializers.Serializer):
+class FamilyMemberListSerializer(serializers.Serializer):
+    person_id = serializers.CharField()
+
+    def to_representation(self, instance):
+        person = Person.nodes.get(element_id=instance["person_id"])
+        data = {
+            "ЭЦЭГ": [PersonSerializer(p).data for p in person.father.all()],
+            "ЭХ": [PersonSerializer(p).data for p in person.mother.all()],
+            "ХҮҮХЭД": [PersonSerializer(p).data for p in person.children.all()],
+            "АХ": [PersonSerializer(p).data for p in person.brothers.all()],
+            "ЭГЧ": [PersonSerializer(p).data for p in person.sisters.all()],
+            "ДҮҮ": [PersonSerializer(p).data for p in person.youngsiblings.all()],
+            "ГЭР БҮЛ": [PersonSerializer(p).data for p in person.spouse.all()],
+            "ӨВӨӨ": [PersonSerializer(p).data for p in person.grandfather.all()],
+            "ЭМЭЭ": [PersonSerializer(p).data for p in person.grandmother.all()],
+        }
+        return data
+class FamilyMemberAddSerializer(serializers.Serializer):
     from_person_id = serializers.CharField()
-    to_person_id = serializers.CharField()
     relationship_type = serializers.ChoiceField(choices=[
-        "ЭЦЭГ", "ЭХ", "ХҮҮХЭД", "АХ","ЭГЧ","ДҮҮ", "ГЭР БҮЛ", "ӨВӨӨ", "ЭМЭЭ", "ТӨРСӨН", "ХАМААРНА", "ХАРЬЯЛАГДДАГ", "БҮРТГЭСЭН", "ЗАСВАРЛАСАН"
+        "ЭЦЭГ", "ЭХ", "ХҮҮХЭД", "АХ", "ЭГЧ", "ДҮҮ", "ГЭР БҮЛ", "ӨВӨӨ", "ЭМЭЭ"
     ])
+    name = serializers.CharField()
+    lastname = serializers.CharField(required=False)
+    gender = serializers.ChoiceField(choices=["Эр", "Эм"])
+    birthdate = serializers.DateField()
+    diedate = serializers.DateField(required=False, allow_null=True)
+    biography = serializers.CharField(required=False)
     
-# 🟢 Place Serializer
-class PlaceSerializer(serializers.Serializer):
-    class Meta:
-        model = Place
-        fields = '__all__'
+    # 🔹 New fields
+    uye_id = serializers.CharField(required=False)
+    place_id = serializers.CharField(required=False)
+    urgiinovog_id = serializers.CharField(required=False)
 
     def create(self, validated_data):
-        return Place(**validated_data).save()
+        from_person_id = validated_data.pop("from_person_id")
+        relationship_type = validated_data.pop("relationship_type")
 
-# 🟢 UrgiinOvog Serializer
-class UrgiinOvogSerializer(serializers.Serializer):
-    class Meta:
-        model = UrgiinOvog
-        fields = '__all__'
+        # Optional relationship fields
+        uye_id = validated_data.pop("uye_id", None)
+        place_id = validated_data.pop("place_id", None)
+        urgiinovog_id = validated_data.pop("urgiinovog_id", None)
 
-    def create(self, validated_data):
-        return UrgiinOvog(**validated_data).save()
-    
-# 🟢 User Serializer
+        try:
+            # First get the user
+            user = User.nodes.get(uid=from_person_id)
+            # Then get their associated person
+            from_person = next(iter(user.created_people.all()), None)
+            if not from_person:
+                raise serializers.ValidationError({"from_person_id": "No person found for this user"})
+        except User.DoesNotExist:
+            raise serializers.ValidationError({"from_person_id": "User not found"})
 
-class UyeSerializer(serializers.Serializer):    
-    class Meta:
-        model = Uye
-        fields = '__all__'
+        new_person = Person(**validated_data)
+        new_person.save()
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            user = User.nodes.get(username=request.user.username)
+            new_person.created_by.connect(user)
 
-    def create(self, validated_data):
-        return Uye(**validated_data).save()
+        # Family relationship
+        # Map relationship types to their corresponding methods
+        relationship_map = {
+            "ЭЦЭГ": "father",
+            "ЭХ": "mother",
+            "ХҮҮХЭД": "children",
+            "АХ": "brothers",
+            "ЭГЧ": "sisters",
+            "ДҮҮ": "youngsiblings",
+            "ГЭР БҮЛ": "spouse",
+            "ӨВӨӨ": "grandfather",
+            "ЭМЭЭ": "grandmother"
+        }
+
+        rel_method_name = relationship_map.get(relationship_type)
+        if rel_method_name:
+            rel_method = getattr(from_person, rel_method_name)
+            rel_method.connect(new_person)
+        else:
+            raise serializers.ValidationError("Invalid relationship type")
+
+        # Generation (Үе)
+        if uye_id:
+            try:
+                uye_node = Uye.nodes.get(uid=uye_id)
+                new_person.generation.connect(uye_node)
+            except Uye.DoesNotExist:
+                raise serializers.ValidationError({"uye_uid": "Invalid Uye UID"})
+        # Birthplace
+        if place_id:
+            try:
+                place = Place.nodes.get(uid=place_id)
+                new_person.born_in.connect(place)
+            except Place.DoesNotExist:
+                raise serializers.ValidationError({"place_id": "Invalid Place UID"})
+        # Clan (Ургийн овог)
+        if urgiinovog_id:
+            try:
+                clan = UrgiinOvog.nodes.get(uid=urgiinovog_id)
+                new_person.urgiinovog.connect(clan)
+            except UrgiinOvog.DoesNotExist:
+                raise serializers.ValidationError({"urgiinovog_id": "Invalid UrgiinOvog UID"})
+        return new_person
+
     

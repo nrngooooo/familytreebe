@@ -4,8 +4,8 @@ from rest_framework import status
 from neomodel.exceptions import DoesNotExist
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from .models import Person, Place, User
-from .serializers import LoginSerializer, PersonSerializer, PlaceSerializer, RelationshipSerializer, UserSerializer
+from .models import *
+from .serializers import *
 from .authentication import UUIDTokenAuthentication
 class RegisterView(APIView):
     permission_classes = [AllowAny]  # Allow unauthenticated access to registration
@@ -151,34 +151,21 @@ class AddRelationshipView(APIView):
             from_person.modified_by.connect(to_person)  
             
         return Response({"message": f"{rel_type} холбоо үүсгэгдлээ."}, status=201)
-# 🟢 List & Create Places
-class PlaceListCreateView(APIView):
-    def get(self, request):
-        places = Place.nodes.all()
-        serializer = PlaceSerializer(places, many=True)
-        return Response(serializer.data)
-
+class AddFamilyMemberView(APIView):
     def post(self, request):
-        serializer = PlaceSerializer(data=request.data)
+        serializer = FamilyMemberAddSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=201)
-        return Response(serializer.errors, status=400)
+            new_member = serializer.save()
+            return Response({"message": "Амжилттай нэмэгдлээ!", "uid": new_member.uid})
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# 🟢 List & Create Users
-class UserListCreateView(APIView):
-    def get(self, request):
-        users = User.nodes.all()
-        serializer = UserSerializer(users, many=True)
-        return Response(serializer.data)
-
-    def post(self, request):
-        serializer = UserSerializer(data=request.data)
+class FamilyMembersListView(APIView):
+    def get(self, request, person_id):
+        serializer = FamilyMemberListSerializer(data={"person_id": person_id})
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=201)
-        return Response(serializer.errors, status=400)
-
+            data = serializer.to_representation({"person_id": person_id})
+            return Response(data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 class LogoutView(APIView):
     authentication_classes = [UUIDTokenAuthentication]
     permission_classes = [IsAuthenticated]
@@ -206,7 +193,98 @@ class DeleteUserView(APIView):
             # Delete the user
             user.delete()
             return Response({"message": "Хэрэглэгч амжилттай устгагдлаа"}, status=200)
-        except User.DoesNotExist:
+        except DoesNotExist:
             return Response({"error": "Хэрэглэгч олдсонгүй"}, status=404)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
+# 🟢 List & Create Places
+class PlaceListCreateView(APIView):
+    authentication_classes = [UUIDTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            places = Place.nodes.all()
+            data = [{
+                'uid': str(place.uid),
+                'name': place.name,
+                'country': place.country
+            } for place in places]
+            return Response(data)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
+
+    def post(self, request):
+        serializer = PlaceSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+# 🟢 List & Create Users
+class UserListCreateView(APIView):
+    def get(self, request):
+        users = User.nodes.all()
+        serializer = UserSerializer(users, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = UserSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+class UyeListCreateView(APIView):
+    authentication_classes = [UUIDTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            uye = Uye.nodes.all()
+            data = [{
+                'uid': str(u.uid),
+                'uyname': u.uyname,
+                'level': u.level
+            } for u in uye]
+            return Response(data)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
+
+class UrgiinOvogListCreateView(APIView):
+    authentication_classes = [UUIDTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            urgiinovog = UrgiinOvog.nodes.all()
+            data = [{
+                'uid': str(u.uid),
+                'urgiinovog': u.urgiinovog
+            } for u in urgiinovog]
+            return Response(data)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
+
+class RelationshipTypesView(APIView):
+    authentication_classes = [UUIDTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            # Only include person-to-person relationships
+            # Exclude relationships that are handled through other fields (uye, place, etc.)
+            relationship_types = [
+                {"type": "ЭЦЭГ", "label": "ЭЦЭГ"},  # Father
+                {"type": "ЭХ", "label": "ЭХ"},      # Mother
+                {"type": "ХҮҮХЭД", "label": "ХҮҮХЭД"},  # Children
+                {"type": "АХ", "label": "АХ"},      # Brother
+                {"type": "ЭГЧ", "label": "ЭГЧ"},    # Sister
+                {"type": "ДҮҮ", "label": "ДҮҮ"},    # Younger Sibling
+                {"type": "ГЭР БҮЛ", "label": "ГЭР БҮЛ"},  # Spouse
+                {"type": "ӨВӨӨ", "label": "ӨВӨӨ"},  # Grandfather
+                {"type": "ЭМЭЭ", "label": "ЭМЭЭ"}   # Grandmother
+            ]
+            return Response(relationship_types, status=200)
         except Exception as e:
             return Response({"error": str(e)}, status=400)
