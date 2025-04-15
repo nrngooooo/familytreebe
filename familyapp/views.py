@@ -9,6 +9,7 @@ from .serializers import *
 from .authentication import UUIDTokenAuthentication
 import datetime
 
+# REGISTER || LOGIN || LOGOUT
 class RegisterView(APIView):
     permission_classes = [AllowAny]  # Allow unauthenticated access to registration
     def post(self, request):
@@ -40,6 +41,18 @@ class LoginView(APIView):
                 "token": token,
             }, status=200)
         return Response(serializer.errors, status=400)
+class LogoutView(APIView):
+    authentication_classes = [UUIDTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            user = request.user
+            user.token = None
+            user.save()
+            return Response({"message": "Амжилттай гарлаа"}, status=200)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
     
 # 🟢 List & Create Persons
 class ProfileView(APIView):
@@ -201,18 +214,6 @@ class FamilyMembersListView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=500)
 
-class LogoutView(APIView):
-    authentication_classes = [UUIDTokenAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        try:
-            user = request.user
-            user.token = None
-            user.save()
-            return Response({"message": "Амжилттай гарлаа"}, status=200)
-        except Exception as e:
-            return Response({"error": str(e)}, status=400)
 
 class DeleteUserView(APIView):
     authentication_classes = [UUIDTokenAuthentication]
