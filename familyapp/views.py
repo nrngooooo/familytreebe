@@ -195,17 +195,17 @@ class FamilyMembersListView(APIView):
                 person.save()
                 user.created_people.connect(person)
             
-            # Get all related family members
+            # Get all related family members with full details
             family_members = {
-                "father": [PersonSerializer(p).data for p in person.father.all()],
-                "mother": [PersonSerializer(p).data for p in person.mother.all()],
-                "children": [PersonSerializer(p).data for p in person.children.all()],
-                "brothers": [PersonSerializer(p).data for p in person.brothers.all()],
-                "sisters": [PersonSerializer(p).data for p in person.sisters.all()],
-                "youngsiblings": [PersonSerializer(p).data for p in person.youngsiblings.all()],
-                "spouse": [PersonSerializer(p).data for p in person.spouse.all()],
-                "grandfather": [PersonSerializer(p).data for p in person.grandfather.all()],
-                "grandmother": [PersonSerializer(p).data for p in person.grandmother.all()]
+                "father": [self._get_person_details(p) for p in person.father.all()],
+                "mother": [self._get_person_details(p) for p in person.mother.all()],
+                "children": [self._get_person_details(p) for p in person.children.all()],
+                "brothers": [self._get_person_details(p) for p in person.brothers.all()],
+                "sisters": [self._get_person_details(p) for p in person.sisters.all()],
+                "youngsiblings": [self._get_person_details(p) for p in person.youngsiblings.all()],
+                "spouse": [self._get_person_details(p) for p in person.spouse.all()],
+                "grandfather": [self._get_person_details(p) for p in person.grandfather.all()],
+                "grandmother": [self._get_person_details(p) for p in person.grandmother.all()]
             }
             
             return Response(family_members)
@@ -214,6 +214,59 @@ class FamilyMembersListView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=500)
 
+    def _get_person_details(self, person):
+        """Helper method to get full details of a person including related information"""
+        try:
+            # Get birthplace details
+            birthplace = None
+            try:
+                place = person.born_in.single()
+                birthplace = {
+                    "uid": str(place.uid),
+                    "name": place.name,
+                    "country": place.country
+                }
+            except:
+                pass
+
+            # Get generation (үе) details
+            generation = None
+            try:
+                uye = person.generation.single()
+                generation = {
+                    "uid": str(uye.uid),
+                    "uyname": uye.uyname,
+                    "level": uye.level
+                }
+            except:
+                pass
+
+            # Get clan (ургийн овог) details
+            urgiinovog = None
+            try:
+                clan = person.urgiinovog.single()
+                urgiinovog = {
+                    "uid": str(clan.uid),
+                    "urgiinovog": clan.urgiinovog
+                }
+            except:
+                pass
+
+            return {
+                "uid": str(person.uid),
+                "name": person.name,
+                "lastname": person.lastname,
+                "gender": person.gender,
+                "birthdate": person.birthdate.isoformat(),
+                "diedate": person.diedate.isoformat() if person.diedate else None,
+                "biography": person.biography,
+                "birthplace": birthplace,
+                "generation": generation,
+                "urgiinovog": urgiinovog
+            }
+        except Exception as e:
+            print(f"Error getting person details: {e}")
+            return None
 
 class DeleteUserView(APIView):
     authentication_classes = [UUIDTokenAuthentication]
