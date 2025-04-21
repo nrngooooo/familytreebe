@@ -120,6 +120,9 @@ class PersonEditView(APIView):
         return Response(serializer.errors, status=400)
 
 class AddRelationshipView(APIView):
+    authentication_classes = [UUIDTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
     def post(self, request):
         serializer = RelationshipSerializer(data=request.data)
         if not serializer.is_valid():
@@ -130,8 +133,8 @@ class AddRelationshipView(APIView):
         rel_type = serializer.validated_data['relationship_type']
 
         try:
-            from_person = Person.nodes.get(element_id=from_id)
-            to_person = Person.nodes.get(element_id=to_id)
+            from_person = Person.nodes.get(uid=from_id)
+            to_person = Person.nodes.get(uid=to_id)
         except Person.DoesNotExist:
             return Response({"error": "Person not found"}, status=404)
 
@@ -166,6 +169,7 @@ class AddRelationshipView(APIView):
             from_person.modified_by.connect(to_person)  
             
         return Response({"message": f"{rel_type} холбоо үүсгэгдлээ."}, status=201)
+
 class AddFamilyMemberView(APIView):
     def post(self, request):
         serializer = FamilyMemberAddSerializer(data=request.data)
