@@ -238,4 +238,63 @@ class FamilyMemberAddSerializer(serializers.Serializer):
                 raise serializers.ValidationError({"urgiinovog_id": "Invalid UrgiinOvog UID"})
         return new_person
 
+class SimplePersonSerializer(serializers.Serializer):
+    name = serializers.CharField(required=True)
+    lastname = serializers.CharField(required=False, allow_blank=True)
+    gender = serializers.ChoiceField(choices=["Эр", "Эм"])
+    birthdate = serializers.DateField(required=True)
+    diedate = serializers.DateField(required=False, allow_null=True)
+    biography = serializers.CharField(required=False, allow_blank=True)
+    birthplace = serializers.JSONField(required=False, allow_null=True)
+    urgiinovog_id = serializers.CharField(required=False, allow_null=True)
+
+    def create(self, validated_data):
+        # Extract relationship fields that shouldn't be passed to Person constructor
+        urgiinovog_id = validated_data.pop('urgiinovog_id', None)
+        birthplace = validated_data.pop('birthplace', None)
+        
+        # Create the person
+        person = Person(**validated_data)
+        person.save()
+        
+        # Handle relationships if provided
+        if urgiinovog_id:
+            try:
+                clan = UrgiinOvog.nodes.get(uid=urgiinovog_id)
+                person.urgiinovog.connect(clan)
+            except UrgiinOvog.DoesNotExist:
+                pass  # Silently ignore if urgiinovog not found
+                
+        if birthplace and isinstance(birthplace, dict) and 'uid' in birthplace:
+            try:
+                place = Place.nodes.get(uid=birthplace['uid'])
+                person.born_in.connect(place)
+            except Place.DoesNotExist:
+                pass  # Silently ignore if place not found
+                
+        return person
+
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance
+    
+    def get_urgiinovog(self, obj):
+        try:
+            clan = obj.urgiinovog.single()
+            return {"urgiinovog": clan.urgiinovog}
+        except:
+            return None
+        
+    def get_birthplace(self, obj):
+        try:
+            place = obj.born_in.single()
+            return {"name": place.name, "country": place.country}
+        except:
+            return None
+
+
+
+
     

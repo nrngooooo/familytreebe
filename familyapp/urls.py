@@ -18,4 +18,7 @@ urlpatterns = [
     path('uye/', UyeListCreateView.as_view(), name='uye-list'),
     path('urgiinovog/', UrgiinOvogListCreateView.as_view(), name='urgiinovog-list'),
     path('relationship-types/', RelationshipTypesView.as_view(), name='relationship-types'),
+    
+    # New simple person endpoint
+    path('simple-person/', SimplePersonCreateView.as_view(), name='simple-person'),
 ]

@@ -381,3 +381,96 @@ class RelationshipTypesView(APIView):
             return Response(relationship_types, status=200)
         except Exception as e:
             return Response({"error": str(e)}, status=400)
+
+class SimplePersonCreateView(APIView):
+    permission_classes = [AllowAny]  # Allow unauthenticated access for testing
+
+    def post(self, request):
+        serializer = SimplePersonSerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                person = serializer.save()
+                # Get the serialized data for response
+                response_data = {
+                    "message": "Хүн амжилттай нэмэгдлээ",
+                    "uid": str(person.uid),
+                    "name": person.name,
+                    "lastname": person.lastname,
+                    "gender": person.gender,
+                    "birthdate": person.birthdate.isoformat() if person.birthdate else None,
+                    "diedate": person.diedate.isoformat() if person.diedate else None,
+                    "biography": person.biography,
+                }
+                
+                # Safely add birthplace if it exists
+                try:
+                    place = person.born_in.single()
+                    if place:
+                        response_data["birthplace"] = {
+                            "uid": str(place.uid),
+                            "name": place.name,
+                            "country": place.country
+                        }
+                except:
+                    response_data["birthplace"] = None
+                
+                # Safely add urgiinovog if it exists
+                try:
+                    clan = person.urgiinovog.single()
+                    if clan:
+                        response_data["urgiinovog"] = {
+                            "uid": str(clan.uid),
+                            "urgiinovog": clan.urgiinovog
+                        }
+                except:
+                    response_data["urgiinovog"] = None
+                
+                return Response(response_data, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def get(self, request):
+        # For testing purposes, return a list of all persons
+        persons = Person.nodes.all()
+        data = []
+        for person in persons:
+            person_data = {
+                "uid": str(person.uid),
+                "name": person.name,
+                "lastname": person.lastname,
+                "gender": person.gender,
+                "birthdate": person.birthdate.isoformat() if person.birthdate else None,
+                "diedate": person.diedate.isoformat() if person.diedate else None,
+                "biography": person.biography,
+                "birthplace": None,
+                "urgiinovog": None
+            }
+            
+            # Safely add birthplace if it exists
+            try:
+                place = person.born_in.single()
+                if place:
+                    person_data["birthplace"] = {
+                        "uid": str(place.uid),
+                        "name": place.name,
+                        "country": place.country
+                    }
+            except:
+                pass
+                
+            # Safely add urgiinovog if it exists
+            try:
+                clan = person.urgiinovog.single()
+                if clan:
+                    person_data["urgiinovog"] = {
+                        "uid": str(clan.uid),
+                        "urgiinovog": clan.urgiinovog
+                    }
+            except:
+                pass
+                
+            data.append(person_data)
+            
+        return Response(data)
+
