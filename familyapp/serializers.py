@@ -247,11 +247,13 @@ class SimplePersonSerializer(serializers.Serializer):
     biography = serializers.CharField(required=False, allow_blank=True)
     birthplace = serializers.JSONField(required=False, allow_null=True)
     urgiinovog_id = serializers.CharField(required=False, allow_null=True)
+    uye_id = serializers.CharField(required=False, allow_null=True)
 
     def create(self, validated_data):
         # Extract relationship fields that shouldn't be passed to Person constructor
         urgiinovog_id = validated_data.pop('urgiinovog_id', None)
         birthplace = validated_data.pop('birthplace', None)
+        uye_id = validated_data.pop('uye_id', None)
         
         # Create the person
         person = Person(**validated_data)
@@ -271,6 +273,13 @@ class SimplePersonSerializer(serializers.Serializer):
                 person.born_in.connect(place)
             except Place.DoesNotExist:
                 pass  # Silently ignore if place not found
+                
+        if uye_id:
+            try:
+                uye = Uye.nodes.get(uid=uye_id)
+                person.generation.connect(uye)
+            except Uye.DoesNotExist:
+                pass  # Silently ignore if uye not found
                 
         return person
 
