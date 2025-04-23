@@ -178,6 +178,59 @@ class AddFamilyMemberView(APIView):
             return Response({"message": "Амжилттай нэмэгдлээ!", "uid": new_member.uid})
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class UpdateFamilyMemberView(APIView):
+    authentication_classes = [UUIDTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, uid):
+        try:
+            # Get the person by UID
+            person = Person.nodes.get(uid=uid)
+            
+            # Create a serializer with the person instance and request data
+            serializer = PersonSerializer(person, data=request.data, partial=True)
+            
+            if serializer.is_valid():
+                # Update the person with validated data
+                for attr, value in serializer.validated_data.items():
+                    setattr(person, attr, value)
+                person.save()
+                
+                # Handle relationships if provided
+                if 'place_id' in request.data:
+                    try:
+                        place = Place.nodes.get(uid=request.data['place_id'])
+                        # Clear existing relationships and add new one
+                        person.born_in.disconnect_all()
+                        person.born_in.connect(place)
+                    except Place.DoesNotExist:
+                        pass
+                
+                if 'uye_id' in request.data:
+                    try:
+                        uye = Uye.nodes.get(uid=request.data['uye_id'])
+                        # Clear existing relationships and add new one
+                        person.generation.disconnect_all()
+                        person.generation.connect(uye)
+                    except Uye.DoesNotExist:
+                        pass
+                
+                if 'urgiinovog_id' in request.data:
+                    try:
+                        clan = UrgiinOvog.nodes.get(uid=request.data['urgiinovog_id'])
+                        # Clear existing relationships and add new one
+                        person.urgiinovog.disconnect_all()
+                        person.urgiinovog.connect(clan)
+                    except UrgiinOvog.DoesNotExist:
+                        pass
+                
+                return Response({"message": "Амжилттай шинэчлэгдлээ!"}, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Person.DoesNotExist:
+            return Response({"error": "Person not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 class FamilyMembersListView(APIView):
     authentication_classes = [UUIDTokenAuthentication]
     permission_classes = [IsAuthenticated]
