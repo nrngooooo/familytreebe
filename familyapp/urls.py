@@ -9,6 +9,7 @@ urlpatterns = [
     path("family/add/", AddFamilyMemberView.as_view(), name="add-family-member"),
     path("family/<str:person_id>/list/", FamilyMembersListView.as_view(), name="list-family-members"),
     path("family/<str:uid>/update/", UpdateFamilyMemberView.as_view(), name="update-family-member"),
+    path('family/<str:uid>/delete/', DeleteFamilyMemberView.as_view(), name="delete-family-member"),
     path('profile/<str:uid>/delete/', DeleteUserView.as_view()),
     path('person/', PersonCreateView.as_view()),
     path('person/<str:element_id>/', PersonEditView.as_view()),

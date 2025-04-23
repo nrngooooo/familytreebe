@@ -264,6 +264,18 @@ class FamilyMembersListView(APIView):
                 "grandfather": [self._get_person_details(p) for p in person.grandfather.all()],
                 "grandmother": [self._get_person_details(p) for p in person.grandmother.all()]
             }
+
+            # Get children of siblings
+            siblings = []
+            siblings.extend(person.brothers.all())
+            siblings.extend(person.sisters.all())
+            siblings.extend(person.youngsiblings.all())
+
+            for sibling in siblings:
+                sibling_children = sibling.children.all()
+                if sibling_children:
+                    # Add children to the main children list
+                    family_members["children"].extend([self._get_person_details(p) for p in sibling_children])
             
             return Response(family_members)
         except User.DoesNotExist:
@@ -343,6 +355,41 @@ class DeleteUserView(APIView):
             return Response({"error": "Хэрэглэгч олдсонгүй"}, status=404)
         except Exception as e:
             return Response({"error": str(e)}, status=400)
+
+class DeleteFamilyMemberView(APIView):
+    authentication_classes = [UUIDTokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, uid):
+        try:
+            # Get the person by UID
+            person = Person.nodes.get(uid=uid)
+            
+            # Delete all relationships
+            person.father.disconnect_all()
+            person.mother.disconnect_all()
+            person.children.disconnect_all()
+            person.brothers.disconnect_all()
+            person.sisters.disconnect_all()
+            person.youngsiblings.disconnect_all()
+            person.spouse.disconnect_all()
+            person.grandfather.disconnect_all()
+            person.grandmother.disconnect_all()
+            person.born_in.disconnect_all()
+            person.generation.disconnect_all()
+            person.urgiinovog.disconnect_all()
+            person.created_by.disconnect_all()
+            person.modified_by.disconnect_all()
+            
+            # Delete the person
+            person.delete()
+            
+            return Response({"message": "Гишүүн амжилттай устгагдлаа"}, status=status.HTTP_200_OK)
+        except Person.DoesNotExist:
+            return Response({"error": "Гишүүн олдсонгүй"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 # 🟢 List & Create Places
 class PlaceListCreateView(APIView):
     authentication_classes = [UUIDTokenAuthentication]
