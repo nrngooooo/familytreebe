@@ -302,8 +302,3 @@ class SimplePersonSerializer(serializers.Serializer):
             return {"name": place.name, "country": place.country}
         except:
             return None
-
-
-
-
-    
